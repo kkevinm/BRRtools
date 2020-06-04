@@ -594,6 +594,17 @@ int main(const int argc, char *const argv[])
 	for (int i=0; i<16; ++i)					//Initialization needed if any of the first 16 samples isn't zero
 		initial_block |= samples[i]!=0;
 
+	unsigned int k = 0;
+	if(fix_loop_en) {
+		k = samples_length - (initial_block ? new_loopsize - 16 : new_loopsize);
+	}
+
+	k = k * 9 / 16;
+	unsigned int k_low = k&0xFF;
+	unsigned int k_high = (k>>8)&0xFF;
+	fwrite(&k_low, 1, 1, outbrr);
+	fwrite(&k_high, 1, 1, outbrr);
+
 	if(initial_block)
 	{	//Write initial BRR block
 		const u8 initial_block[9] = {loop_flag, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -616,7 +627,6 @@ int main(const int argc, char *const argv[])
 
 	if(fix_loop_en)
 	{
-		unsigned int k = samples_length - (initial_block ? new_loopsize - 16 : new_loopsize);
 		printf("Position of the loop within the BRR sample : %u samples = %u BRR blocks.\n", k, k/16);
 	}
 
