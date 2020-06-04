@@ -599,9 +599,9 @@ int main(const int argc, char *const argv[])
 		k = samples_length - (initial_block ? new_loopsize - 16 : new_loopsize);
 	}
 
-	k = k * 9 / 16;
-	unsigned int k_low = k&0xFF;
-	unsigned int k_high = (k>>8)&0xFF;
+	unsigned int k1 = k * 9 / 16;
+	unsigned int k_low = k1&0xFF;
+	unsigned int k_high = (k1>>8)&0xFF;
 	fwrite(&k_low, 1, 1, outbrr);
 	fwrite(&k_high, 1, 1, outbrr);
 
