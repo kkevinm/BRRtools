@@ -29,6 +29,7 @@ static void print_instructions()
 		"-t[N] truncate the input wave to the the first N samples (ignoring\n"
 		"  any sound data that follows)\n"
 		"-w disable wrapping (encoded sample will be compatible with old SPC players)\n"
+		"-m add Addmusic header to the samples (to be usable with SMW Addmusic tools)\n"
 		"-g enable treble boost to compensate the gaussian filtering of SNES hardware\n"
 		"\nResampling interpolation types :\n"
 		"n : nearest neighboor, l : linear, s : sine, c : cubic, b : bandlimited\n\n"
@@ -47,6 +48,7 @@ static bool FIRen[4] = {true, true, true, true};	// Which BRR filters are enable
 static unsigned int FIRstats[4] = {0, 0, 0, 0};	// Statistincs on BRR filter usage
 static bool wrap_en = true;
 static char resample_type = 'l';					// Resampling type (n = nearest neighboor, l = linear, c = cubic, s = sine, b = bandlimited)
+static bool add_header = false;
 
 static double sinc(const double x)
 {
@@ -323,7 +325,7 @@ int main(const int argc, char *const argv[])
 	bool treble_boost = false;
 
 	int c;
-	while((c = getopt(argc, argv, "a:l::f:wr:s:z:r:t:g")) != -1)
+	while((c = getopt(argc, argv, "a:l::f:wr:s:z:r:t:gm")) != -1)
 	{
 		switch(c)
 		{
@@ -390,6 +392,10 @@ int main(const int argc, char *const argv[])
 
 			case 'g':
 				treble_boost = true;
+				break;
+
+			case 'm':
+				add_header = true;
 				break;
 
 			default :
@@ -599,11 +605,13 @@ int main(const int argc, char *const argv[])
 		k = samples_length - (initial_block ? new_loopsize - 16 : new_loopsize);
 	}
 
-	unsigned int k1 = k * 9 / 16;
-	unsigned int k_low = k1&0xFF;
-	unsigned int k_high = (k1>>8)&0xFF;
-	fwrite(&k_low, 1, 1, outbrr);
-	fwrite(&k_high, 1, 1, outbrr);
+	if(add_header) {
+		unsigned int k1 = k * 9 / 16;
+		unsigned int k_low = k1&0xFF;
+		unsigned int k_high = (k1>>8)&0xFF;
+		fwrite(&k_low, 1, 1, outbrr);
+		fwrite(&k_high, 1, 1, outbrr);
+	}
 
 	if(initial_block)
 	{	//Write initial BRR block
