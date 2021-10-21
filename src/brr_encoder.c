@@ -558,7 +558,7 @@ int main(const int argc, char *const argv[])
 	if (bidi_loop) {
 		// Append the reversed loop if the loop is bidirectional
 		for (int i = loop_start; i < samples_length; i++) {
-			samples[samples_length + bidi_length - i] = samples[i];
+			samples[2*samples_length - i] = samples[i];
 		}
 
 		// Also update the length
