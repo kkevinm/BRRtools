@@ -27,7 +27,9 @@ static void print_instructions()
 		"-t[N] truncate the input wave to the the first N samples (ignoring\n"
 		"  any sound data that follows)\n"
 		"-w disable wrapping (encoded sample will be compatible with old SPC players)\n"
+		"-m add Addmusic header to the samples (to be usable with SMW Addmusic tools)\n"
 		"-g enable treble boost to compensate the gaussian filtering of SNES hardware\n"
+		"-b enable bidirectional sample loop"
 		"\nResampling interpolation types :\n"
 		"n : nearest neighboor, l : linear, s : sine, c : cubic, b : bandlimited\n\n"
 		"Examples : brr_encoder -l432 -a0.8 -f01 -sc32000 in_sample.wav out_sample.brr\n"
@@ -45,6 +47,8 @@ static bool FIRen[4] = {true, true, true, true};	// Which BRR filters are enable
 static unsigned int FIRstats[4] = {0, 0, 0, 0};	// Statistincs on BRR filter usage
 static bool wrap_en = true;
 static char resample_type = 'l';					// Resampling type (n = nearest neighboor, l = linear, c = cubic, s = sine, b = bandlimited)
+static bool add_header = false;
+static bool bidi_loop = false;
 
 static double sinc(const double x)
 {
@@ -321,7 +325,7 @@ int main(const int argc, char *const argv[])
 	bool treble_boost = false;
 
 	int c;
-	while((c = getopt(argc, argv, "a:l::f:wr:s:z:r:t:g")) != -1)
+	while((c = getopt(argc, argv, "a:l::f:wr:s:z:r:t:gmb")) != -1)
 	{
 		switch(c)
 		{
@@ -388,6 +392,14 @@ int main(const int argc, char *const argv[])
 
 			case 'g':
 				treble_boost = true;
+				break;
+
+			case 'm':
+				add_header = true;
+				break;
+
+			case 'b':
+				bidi_loop = true;
 				break;
 
 			default :
@@ -497,7 +509,13 @@ int main(const int argc, char *const argv[])
 	if(truncate_len && (truncate_len < samples_length))
 		samples_length = truncate_len;
 
-	Sample *samples = safe_malloc(WIDTH * samples_length);
+	unsigned int bidi_length = 0;
+
+	if (bidi_loop) {
+		bidi_length = samples_length - loop_start;
+	}
+
+	Sample *samples = safe_malloc(WIDTH * (samples_length + bidi_length));
 
 	// Adjust amplitude in function of amount of channels
 	ampl_adjust /= hdr.chans;
@@ -537,6 +555,16 @@ int main(const int argc, char *const argv[])
 
 	if(target_samplerate) {
 		ratio = 1.0 * hdr.sample_rate / target_samplerate;
+	}
+
+	if (bidi_loop) {
+		// Append the reversed loop if the loop is bidirectional
+		for (int i = loop_start; i < samples_length; i++) {
+			samples[2*samples_length - i] = samples[i];
+		}
+
+		// Also update the length
+		samples_length += bidi_length;
 	}
 
 	unsigned int target_length;
@@ -597,6 +625,19 @@ int main(const int argc, char *const argv[])
 	for (int i=0; i<16; ++i)					//Initialization needed if any of the first 16 samples isn't zero
 		initial_block |= samples[i]!=0;
 
+	unsigned int k = 0;
+	if(fix_loop_en) {
+		k = samples_length - (initial_block ? new_loopsize - 16 : new_loopsize);
+	}
+
+	if(add_header) {
+		unsigned int k1 = k * 9 / 16;
+		unsigned int k_low = k1&0xFF;
+		unsigned int k_high = (k1>>8)&0xFF;
+		fwrite(&k_low, 1, 1, outbrr);
+		fwrite(&k_high, 1, 1, outbrr);
+	}
+
 	if(initial_block)
 	{	//Write initial BRR block
 		const u8 initial_block[9] = {loop_flag, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -619,7 +660,6 @@ int main(const int argc, char *const argv[])
 
 	if(fix_loop_en)
 	{
-		unsigned int k = samples_length - (initial_block ? new_loopsize - 16 : new_loopsize);
 		printf("Position of the loop within the BRR sample : %u samples = %u BRR blocks.\n", k, k/16);
 	}
 
