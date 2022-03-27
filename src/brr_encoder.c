@@ -451,11 +451,11 @@ int main(const int argc, char *const argv[])
 		exit(1);
 	}
 	// "WAVEfmt" letters
-	if(strncmp(hdr.wave_str, "WAVEfmt ", 8))
+	/*if(strncmp(hdr.wave_str, "WAVEfmt ", 8))
 	{
 		fprintf(stderr, "Input file in unsupported format : \"WAVEfmt\" block missing !\n");
 		exit(1);
-	}
+	}*/
 
 	//Size of sub-chunk1 (header) must be at least 16 and in PCM format
 	if(hdr.sc1size < 0x10 || hdr.audio_format != 1)
